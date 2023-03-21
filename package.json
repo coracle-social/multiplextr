@@ -1,0 +1,18 @@
+{
+  "name": "multiplextr",
+  "version": "1.0.0",
+  "description": "A websocket multiplexer for nostr",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "author": "Jon Staab",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.13.0"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.7",
+    "utf-8-validate": "^6.0.3"
+  }
+}
