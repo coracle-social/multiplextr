@@ -4,15 +4,22 @@
   "description": "A websocket multiplexer for nostr",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "lint": "eslint src",
+    "prepare": "husky install"
   },
   "author": "Jon Staab",
   "license": "MIT",
   "dependencies": {
+    "husky": "^8.0.3",
+    "paravel": "^0.1.7",
     "ws": "^8.13.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.7",
     "utf-8-validate": "^6.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.36.0"
   }
 }

@@ -1,81 +1,117 @@
+const dotenv = require('dotenv')
 const {WebSocketServer} = require('ws')
-const {RelayPool} = require('nostr-relaypool')
+const {Pool, Relays, Executor} = require('paravel')
 
-const wss = new WebSocketServer({port: 8080})
+dotenv.config()
 
-wss.on('connection', ws => {
+process.on('uncaughtException', err => {
+  console.log("Uncaught error", err)
+})
+
+const wss = new WebSocketServer({port: process.env.PORT})
+
+wss.on('connection', socket => {
   console.log('Received connection')
 
-  // Connection-local data
+  const plextr = new Multiplexer(socket)
 
-  const pool = new RelayPool([])
-  const subs = new Map()
+  socket.on('error', e => console.error("Received error on client socket", e))
+  socket.on('close', () => plextr.cleanup())
+  socket.on('message', msg => plextr.handle(msg))
+})
 
-  // Handlers
-
-  ws.on('error', () => console.error(e))
-
-  ws.on('close', () => console.log('connection closed'))
-
-  ws.on('message', data => {
+class Multiplexer {
+  constructor(socket) {
+    this._socket = socket
+    this._pool = new Pool()
+    this._subs = new Map()
+  }
+  cleanup() {
+    this._socket.close()
+    this._pool.clear()
+    this._subs.clear()
+  }
+  send(urls, message) {
+    this._socket.send(JSON.stringify([{relays: urls}, message]))
+  }
+  handle(message) {
     try {
-      const [relays, [verb, ...payload]] = JSON.parse(data)
-      const handler = handlers[payload[0]]
-
-      handler(relays, ...payload)
+      message = JSON.parse(message)
     } catch (e) {
-      send('NOTICE', '', 'Unable to parse message')
+      this.send([], ['NOTICE', '', 'Unable to parse message'])
     }
 
-    console.log('received: %s', data)
-  })
+    const [{relays: urls}, [verb, ...payload]] = message
+    const handler = this[`on${verb}`]
 
-  // Utils
-
-  const send = (...message) => ws.send(JSON.stringify(message))
-
-  const handlers = {
-    REQ(relays, subId, filters) {
-      let eoseCount = 0
-
-      // Close old subscription if subscriptionId already exists
-      subs.get(subId)?.unsub()
-
-      subs.set(subId, {
-        unsub: this._pool.subscribe(
-          [filters],
-          relays,
-          ({relayPool, relays, ...e}) => send("EVENT", subId, e),
-          undefined,
-          (events, relayURL) => {
-            eoseCount++
-
-            if (eoseCount === relays.length) {
-              send("EOSE", subId)
-            }
-          }, {
-            logAllEvents: false,
-          }
-        ),
-      })
-    },
-    CLOSE(relays, subId) {
-      subs.get(subId)?.unsub()
-      subs.delete(subId)
-    },
-    EVENT(relays, event) {
-      const unsub = pool.subscribe(
-        [{ids: [event.id]}],
-        relays,
-        event => {
-          send("OK", event.id, true, "")
-          unsub()
-        }
-      )
-
-      pool.publish(event, relays)
-
-      setTimeout(unsub, 10_000)
+    if (handler) {
+      handler.call(this, Array.from(new Set(urls)), ...payload)
+    } else {
+      this.send([], ['NOTICE', '', 'Unable to handle message'])
     }
   }
-})
+  getExecutor(urls) {
+    const sockets = urls.map(url => this._pool.get(url))
+    const target = new Relays(sockets)
+    const executor = new Executor(target)
+
+    executor.handleAuth({
+      onAuth: (url, challenge) => {
+        this.send([url], ['AUTH', challenge])
+      },
+      onOk: (url, id, ok, message) => {
+        this.send([url], ['OK', id, ok, message])
+      },
+    })
+
+    return executor
+  }
+  onCLOSE(urls, subId) {
+    this._subs.get(subId)?.unsubscribe()
+    this._subs.delete(subId)
+  }
+  onREQ(urls, subId, ...filters) {
+    const seen = new Set()
+    const executor = this.getExecutor(urls)
+
+    // Close old subscription if subscriptionId already exists
+    this._subs.get(subId)?.unsubscribe()
+
+    const sub = executor.subscribe(filters, {
+      onEvent: (url, event) => {
+        if (!seen.has(event.id)) {
+          this.send([url], ['EVENT', subId, event])
+        }
+
+        seen.add(event.id)
+      },
+      onEose: url => {
+        this.send([url], ['EOSE', subId])
+      },
+    })
+
+    this._subs.set(subId, {
+      unsubscribe: () => {
+        sub.unsubscribe()
+        executor.target.cleanup()
+      },
+    })
+  }
+  onEVENT(urls, event) {
+    const executor = this.getExecutor(urls)
+
+    executor.publish(event, {
+      onOk: (url, ...args) => {
+        this.send([url], ['OK', ...args])
+
+        executor.target.cleanup()
+      },
+      onError: (url, ...args) => {
+        this.send([url], ['ERROR', ...args])
+
+        executor.target.cleanup()
+      },
+    })
+  }
+}
+
