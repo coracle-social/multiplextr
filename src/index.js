@@ -100,15 +100,35 @@ class Multiplexer {
   onEVENT(urls, event) {
     const executor = this.getExecutor(urls)
 
-    executor.publish(event, {
+    const sub = executor.publish(event, {
       onOk: (url, ...args) => {
         this.send([url], ['OK', ...args])
-
-        executor.target.cleanup()
       },
       onError: (url, ...args) => {
         this.send([url], ['ERROR', ...args])
+      },
+    })
 
+    setTimeout(() => {
+      sub.unsubscribe()
+      executor.target.cleanup()
+    }, 10_000)
+  }
+  onCOUNT(urls, subId, ...filters) {
+    const executor = this.getExecutor(urls)
+
+    // Close old subscription if subscriptionId already exists
+    this._subs.get(subId)?.unsubscribe()
+
+    const sub = executor.count(filters, {
+      onCount: (url, ...payload) => {
+        this.send([url], ['COUNT', subId, ...payload])
+      },
+    })
+
+    this._subs.set(subId, {
+      unsubscribe: () => {
+        sub.unsubscribe()
         executor.target.cleanup()
       },
     })
