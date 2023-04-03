@@ -13,7 +13,7 @@
   "dependencies": {
     "dotenv": "^16.0.3",
     "husky": "^8.0.3",
-    "paravel": "^0.1.10",
+    "paravel": "^0.1.13",
     "ws": "^8.13.0"
   },
   "optionalDependencies": {

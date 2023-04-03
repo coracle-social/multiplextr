@@ -5,7 +5,9 @@ const {Pool, Relays, Executor} = require('paravel')
 dotenv.config()
 
 process.on('uncaughtException', err => {
-  console.log("Uncaught error", err)
+  if (!err.toString().match(/ETIMEDOUT/)) {
+    console.log("Uncaught error", err)
+  }
 })
 
 const wss = new WebSocketServer({port: process.env.PORT})
