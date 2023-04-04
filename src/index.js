@@ -51,7 +51,13 @@ class Multiplexer {
       this.send([], ['NOTICE', '', 'Unable to parse message'])
     }
 
-    const [{relays: urls}, [verb, ...payload]] = message
+    let urls, verb, payload
+    try {
+      [{relays: urls}, [verb, ...payload]] = message
+    } catch (e) {
+      this.send([], ['NOTICE', '', 'Unable to read message'])
+    }
+
     const handler = this[`on${verb}`]
 
     if (handler) {
