@@ -33,6 +33,7 @@ class Multiplexer {
     this._socket = socket
     this._pool = new Pool()
     this._subs = new Map()
+    this._errorCount = 0
   }
   cleanup() {
     this._socket.close()
@@ -48,6 +49,7 @@ class Multiplexer {
     try {
       message = JSON.parse(message)
     } catch (e) {
+      this._errorCount += 1
       this.send([], ['NOTICE', '', 'Unable to parse message'])
     }
 
@@ -55,6 +57,7 @@ class Multiplexer {
     try {
       [{relays: urls}, [verb, ...payload]] = message
     } catch (e) {
+      this._errorCount += 1
       this.send([], ['NOTICE', '', 'Unable to read message'])
     }
 
@@ -63,7 +66,13 @@ class Multiplexer {
     if (handler) {
       handler.call(this, Array.from(new Set(urls)), ...payload)
     } else {
+      Bugsnag.notify(new Error(`Unable to handle "${verb}"`))
       this.send([], ['NOTICE', '', 'Unable to handle message'])
+    }
+
+    // Drop spurious connections, some people put the multiplexer as their relay
+    if (this._errorCount > 10) {
+      this.cleanup()
     }
   }
   getExecutor(urls) {
