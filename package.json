@@ -11,6 +11,7 @@
   "author": "Jon Staab",
   "license": "MIT",
   "dependencies": {
+    "@bugsnag/js": "^7.20.0",
     "dotenv": "^16.0.3",
     "husky": "^8.0.3",
     "paravel": "^0.1.13",

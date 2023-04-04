@@ -1,11 +1,15 @@
 const dotenv = require('dotenv')
+const Bugsnag = require('@bugsnag/js')
 const {WebSocketServer} = require('ws')
 const {Pool, Relays, Executor} = require('paravel')
 
 dotenv.config()
 
+Bugsnag.start({apiKey: process.env.BUGSNAG_API_KEY})
+
 process.on('uncaughtException', err => {
   if (!err.toString().match(/ETIMEDOUT/)) {
+    Bugsnag.notify(err)
     console.log("Uncaught error", err)
   }
 })
