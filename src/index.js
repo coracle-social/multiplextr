@@ -8,7 +8,7 @@ dotenv.config()
 Bugsnag.start({
   apiKey: process.env.BUGSNAG_API_KEY,
   onError: event => {
-    if (event.errors[0].errorMessage.match(/ETIMEDOUT|EPROTO|403/)) {
+    if (event.errors[0].errorMessage.match(/ETIMEDOUT|EPROTO|403|Invalid URL/)) {
       return false
     }
 
