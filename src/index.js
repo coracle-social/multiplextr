@@ -8,7 +8,7 @@ dotenv.config()
 Bugsnag.start({
   apiKey: process.env.BUGSNAG_API_KEY,
   onError: event => {
-    if (event.errors[0].errorMessage.match(/ETIMEDOUT|EPROTO/)) {
+    if (event.errors[0].errorMessage.match(/ETIMEDOUT|EPROTO|403/)) {
       return false
     }
 
@@ -44,8 +44,6 @@ class Multiplexer {
     this._socket.send(JSON.stringify([{relays: urls}, message]))
   }
   handle(message) {
-    console.log('Handling message:', message.toString())
-
     try {
       message = JSON.parse(message)
     } catch (e) {
@@ -72,6 +70,7 @@ class Multiplexer {
 
     // Drop spurious connections, some people put the multiplexer as their relay
     if (this._errorCount > 10) {
+      console.log("Closing connection due to errors")
       this.cleanup()
     }
   }
