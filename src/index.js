@@ -43,7 +43,7 @@ class Multiplexer {
     this._socket.send(JSON.stringify([{relays: urls}, message]))
   }
   handle(message) {
-    console.log('Handling message:', message)
+    console.log('Handling message:', message.toString())
 
     try {
       message = JSON.parse(message)
