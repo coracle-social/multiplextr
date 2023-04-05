@@ -26,10 +26,6 @@ Bugsnag.start({
   },
 })
 
-process.on('uncaughtException', () => {
-  // Nothing, just avoid crashing the process
-})
-
 const wss = new WebSocketServer({port: process.env.PORT})
 
 wss.on('connection', socket => {
