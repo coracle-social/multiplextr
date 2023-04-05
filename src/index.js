@@ -26,16 +26,27 @@ Bugsnag.start({
   },
 })
 
+const pid = Math.random().toString().slice(2)
 const wss = new WebSocketServer({port: process.env.PORT})
 
+let connCount = 0
+
 wss.on('connection', socket => {
-  console.log('Received connection')
+  connCount += 1
+
+  console.log('Received connection', {pid, connCount})
 
   const plextr = new Multiplexer(socket)
 
-  socket.on('error', e => console.error("Received error on client socket", e))
-  socket.on('close', () => plextr.cleanup())
   socket.on('message', msg => plextr.handle(msg))
+  socket.on('error', e => console.error("Received error on client socket", e))
+  socket.on('close', () => {
+    plextr.cleanup()
+
+    connCount -= 1
+
+    console.log('Closing connection', {pid, connCount})
+  })
 })
 
 class Multiplexer {
