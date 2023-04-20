@@ -26,7 +26,7 @@ Bugsnag.start({
   },
 })
 
-const pid = Math.random().toString().slice(2)
+const pid = Math.random().toString().slice(2, 8)
 const wss = new WebSocketServer({port: process.env.PORT})
 
 let connCount = 0
@@ -142,10 +142,11 @@ class Multiplexer {
       },
     })
   }
-  onEVENT(urls, event) {
+  onEVENT(urls, event, verb = 'EVENT') {
     const executor = this.getExecutor(urls)
 
     const sub = executor.publish(event, {
+      verb,
       onOk: (url, ...args) => {
         this.send([url], ['OK', ...args])
       },
@@ -158,6 +159,9 @@ class Multiplexer {
       sub.unsubscribe()
       executor.target.cleanup()
     }, 10_000)
+  }
+  onAUTH(urls, event) {
+    this.onEVENT(urls, event, 'AUTH')
   }
   onCOUNT(urls, subId, ...filters) {
     const executor = this.getExecutor(urls)
