@@ -85,7 +85,6 @@ class Multiplexer {
     if (handler) {
       handler.call(this, Array.from(new Set(urls)), ...payload)
     } else {
-      Bugsnag.notify(new Error(`Unable to handle "${verb}"`))
       this.send([], ['NOTICE', '', 'Unable to handle message'])
     }
 
